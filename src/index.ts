@@ -5,19 +5,27 @@ import {
   Context,
 } from "https://deno.land/x/oak@v10.3.0/mod.ts";
 import * as jose from "https://deno.land/x/jose@v4.3.7/index.ts";
-import { config } from "https://deno.land/x/dotenv@v3.2.0/mod.ts";
+//import { load } from "https://deno.land/std/dotenv/mod.ts";
+import "https://deno.land/std@0.177.0/dotenv/load.ts";
+
+const env = {}
 
 const app = new Application();
 
 const X_FORWARDED_HOST = "x-forwarded-host";
 
-const JWT_SECRET =
-  Deno.env.get("JWT_SECRET") ?? config({ safe: true }).JWT_SECRET;
-const DENO_ORIGIN =
-  Deno.env.get("DENO_ORIGIN") ?? config({ safe: true }).DENO_ORIGIN;
-const VERIFY_JWT =
-  (Deno.env.get("VERIFY_JWT") ?? config({ safe: true }).VERIFY_JWT) === "true";
+const PROJECT_REF =
+  Deno.env.get("PROJECT_REF") ?? env.PROJECT_REF;
 
+const JWT_SECRET =
+  Deno.env.get("JWT_SECRET") ?? env.JWT_SECRET;
+// const DENO_ORIGIN =
+//   Deno.env.get("DENO_ORIGIN") ?? env.DENO_ORIGIN;
+const VERIFY_JWT =
+  (Deno.env.get("VERIFY_JWT") ?? env.VERIFY_JWT) === "true";
+
+// const DENO_ORIGIN = `https://tictapp-${PROJECT_REF}`
+  
 function getAuthToken(ctx: Context) {
   const authHeader = ctx.request.headers.get("authorization");
   if (!authHeader) {
@@ -57,6 +65,15 @@ function sanitizeHeaders(headers: Headers): Headers {
 function patchedReq(req: Request): [URL, RequestInit] {
   // Parse & patch URL (preserve path and querystring)
   const url = req.url;
+  const pathParts = url.pathname.split("/")
+  pathParts.shift()
+  const FUNCTION_NAME = pathParts.shift()
+
+  console.log('pathParts', pathParts)
+  url.pathname = '/' + pathParts.join('/')
+
+  const DENO_ORIGIN = `https://tictapp-${PROJECT_REF}-${FUNCTION_NAME}.deno.dev`
+
   const denoOrigin = new URL(DENO_ORIGIN);
   url.host = denoOrigin.host;
   url.port = denoOrigin.port;
@@ -81,6 +98,7 @@ function patchedReq(req: Request): [URL, RequestInit] {
 
 async function relayTo(req: Request): Promise<Response> {
   const [url, init] = patchedReq(req);
+  console.log('RELAY', url, init)
   return await fetch(url, init);
 }
 
@@ -98,6 +116,10 @@ app.use(async (ctx: Context, next: () => Promise<unknown>) => {
 app.use(async (ctx: Context, next: () => Promise<unknown>) => {
   const { request, response } = ctx;
 
+  if (request.url.pathname === '/favicon.ico') {
+    return ctx.throw(Status.NotFound, `Not Found`)
+  }
+
   const supportedVerbs = ['POST', 'GET','PUT', 'PATCH', 'DELETE', 'OPTIONS'];
   if (!(supportedVerbs.includes(request.method))) {
     console.error(`${request.method} not supported`);
@@ -107,6 +129,14 @@ app.use(async (ctx: Context, next: () => Promise<unknown>) => {
     );
   }
 
+  const url = request.url;
+  const pathParts = url.pathname.split("/")
+  pathParts.shift()
+  const FUNCTION_NAME = pathParts.shift()
+  if (!Deno.env.has(`FUNCTION_${FUNCTION_NAME?.toUpperCase()}_VERIFY_JWT`)) {
+    return ctx.throw(Status.NotImplemented, `Function "${FUNCTION_NAME}" not found`)
+  }
+  const VERIFY_JWT = Deno.env.get(`FUNCTION_${FUNCTION_NAME?.toUpperCase()}_VERIFY_JWT`) === "true"
 
   if (request.method !== "OPTIONS" && VERIFY_JWT) {
     const token = getAuthToken(ctx);
@@ -122,9 +152,9 @@ app.use(async (ctx: Context, next: () => Promise<unknown>) => {
   const sanitizedHeaders = sanitizeHeaders(resp.headers);
   if (request.method === "GET") {
     const contentTypeHeader = sanitizedHeaders.get('Content-Type');
-    if (contentTypeHeader?.includes('text/html')) {
-      sanitizedHeaders.set('Content-Type', 'text/plain');
-    }
+    // if (contentTypeHeader?.includes('text/html')) {
+    //   sanitizedHeaders.set('Content-Type', 'text/plain');
+    // }
   }
 
   response.body = resp.body;
@@ -139,6 +169,9 @@ if (import.meta.main) {
   const port = parseInt(Deno.args?.[0] ?? 8081);
   const hostname = "0.0.0.0";
 
-  console.log(`Listening on http://${hostname}:${port}`);
+  console.log(`Listening on http://${hostname}:${port} -> ${PROJECT_REF}`);
   await app.listen({ port, hostname });
 }
+
+
+// deno run --watch --allow-all src/index.ts
