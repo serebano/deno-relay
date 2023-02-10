@@ -133,7 +133,7 @@ app.use(async (ctx: Context, next: () => Promise<unknown>) => {
   const pathParts = url.pathname.split("/")
   pathParts.shift()
   const FUNCTION_NAME = pathParts.shift()
-  if (!Deno.env.has(`FUNCTION_${FUNCTION_NAME?.toUpperCase()}_VERIFY_JWT`)) {
+  if (!Deno.env.get(`FUNCTION_${FUNCTION_NAME?.toUpperCase()}_VERIFY_JWT`)) {
     return ctx.throw(Status.NotImplemented, `Function "${FUNCTION_NAME}" not found`)
   }
   const VERIFY_JWT = Deno.env.get(`FUNCTION_${FUNCTION_NAME?.toUpperCase()}_VERIFY_JWT`) === "true"
