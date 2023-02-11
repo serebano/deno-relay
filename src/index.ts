@@ -169,8 +169,8 @@ if (import.meta.main) {
   const port = parseInt(Deno.args?.[0] ?? 8081);
   const hostname = "0.0.0.0";
 
-    console.log(`[deno-relay][${PROJECT_REF}]`)
-    
+    console.log(`[deno-relay][${PROJECT_REF}] 2`)
+
   console.log(`Listening on http://${hostname}:${port} -> ${PROJECT_REF}`);
   await app.listen({ port, hostname });
 }
