@@ -7,10 +7,12 @@ import {
 import * as jose from "https://deno.land/x/jose@v4.3.7/index.ts";
 //import { load } from "https://deno.land/std/dotenv/mod.ts";
 import "https://deno.land/std@0.177.0/dotenv/load.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const env = {}
 
 const app = new Application();
+
 
 const X_FORWARDED_HOST = "x-forwarded-host";
 
@@ -23,6 +25,14 @@ const JWT_SECRET =
 //   Deno.env.get("DENO_ORIGIN") ?? env.DENO_ORIGIN;
 const VERIFY_JWT =
   (Deno.env.get("VERIFY_JWT") ?? env.VERIFY_JWT) === "true";
+
+
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
+//const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 // const DENO_ORIGIN = `https://tictapp-${PROJECT_REF}`
   
@@ -72,7 +82,7 @@ function patchedReq(req: Request): [URL, RequestInit] {
   console.log('pathParts', pathParts)
   url.pathname = '/' + pathParts.join('/')
 
-  const DENO_ORIGIN = `https://tictapp-${PROJECT_REF}-${FUNCTION_NAME}.deno.dev`
+  const DENO_ORIGIN = `https://ttf-${FUNCTION_NAME}.deno.dev`
 
   const denoOrigin = new URL(DENO_ORIGIN);
   url.host = denoOrigin.host;
@@ -136,11 +146,21 @@ app.use(async (ctx: Context, next: () => Promise<unknown>) => {
   if (!FUNCTION_NAME) {
     return ctx.throw(Status.NotFound, `Function name required`)
   }
-  if (!Deno.env.get(`FUNCTION_${FUNCTION_NAME?.toUpperCase()}_VERIFY_JWT`)) {
+
+
+  const {data,error} = await supabase.from('functions').select('*').eq('name', FUNCTION_NAME)
+  const fun = data[0]
+
+  if (data.length === 0) {
     return ctx.throw(Status.NotImplemented, `Function "${PROJECT_REF}/${FUNCTION_NAME}" not found`)
   }
 
-  const VERIFY_JWT = Deno.env.get(`FUNCTION_${FUNCTION_NAME?.toUpperCase()}_VERIFY_JWT`) === "true"
+  if (error) {
+    return ctx.throw(Status.BadRequest, `${error}`)
+  }
+
+  console.log('[fun]', fun)
+  const VERIFY_JWT = fun.verify_jwt  //Deno.env.get(`FUNCTION_${FUNCTION_NAME?.toUpperCase()}_VERIFY_JWT`) === "true"
 
   if (request.method !== "OPTIONS" && VERIFY_JWT) {
     const token = getAuthToken(ctx);
