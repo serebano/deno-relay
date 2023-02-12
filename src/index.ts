@@ -159,7 +159,8 @@ app.use(async (ctx: Context, next: () => Promise<unknown>) => {
     return ctx.throw(Status.BadRequest, `${error}`)
   }
 
-  console.log('[fun]', fun)
+  console.log('[function]', fun)
+
   const VERIFY_JWT = fun.verify_jwt  //Deno.env.get(`FUNCTION_${FUNCTION_NAME?.toUpperCase()}_VERIFY_JWT`) === "true"
 
   if (request.method !== "OPTIONS" && VERIFY_JWT) {
