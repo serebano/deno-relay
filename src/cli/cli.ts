@@ -93,15 +93,16 @@ const options = {
 const res = await fetch(`https://api.tictapp.studio/admin/projects/${ref}/functions`, options)
 
 const curlCmd = (fun) => `
-curl -L -X POST 'https://${fun.project.ref}.functions.tictapp.io/${fun.name}'
--H 'Authorization: Bearer ${fun.project.anon_key}' --data '{"name":"Functions"}'`
+curl -L -X POST 'https://${fun.project.ref}.functions.tictapp.io/${fun.name}' -H 'Authorization: Bearer ${fun.project.anon_key}' --data '{"name":"Functions"}'`
 
 if (res.ok) {
    const data = await res.json()
    const cmd = curlCmd(data)
    console.log(data)
-   console.log("\n\nInvoke your functions\n")
+   console.log(`Authorization enabled: ${data.verify_jwt}`)
+   console.log("\n\nInvoke your function\n")
    console.log(cmd)
+   console.log("\n\n")
 } else {
    const data = await res.json()
    console.error(`\n\nError:\n`)
@@ -112,6 +113,9 @@ if (res.ok) {
     }
 }
 
+// deployctl deploy --project=hello-world --token=ddp_ebahKKeZqiZVeOad7KJRHskLeP79Lf0OJXlj ./hi3/index.ts
+// deployctl deploy --project=ttf-hi6 --token=ddp_ebahKKeZqiZVeOad7KJRHskLeP79Lf0OJXlj --prod ./index.js
+// deployctl logs --project=ttf-hi6 --token=ddp_ebahKKeZqiZVeOad7KJRHskLeP79Lf0OJXlj
 // const message: SMSRequest = {
 //    From: inputArgs.from,
 //    To: inputArgs.to,
